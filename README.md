@@ -85,6 +85,24 @@ Note: By default all worker threads are started by `ThreadPoolExecutor` which de
 to pool size of 25 threads. If you want to increase it or change other settings, you can access instance of executor with 
 `AsyncManager.getExecutor()`.
 
+## Installing with Maven
+
+Installing with Maven:
+```xml
+<repository>
+   <id>vaadin-addons</id>
+   <url>http://maven.vaadin.com/vaadin-addons</url>
+</repository>
+```
+
+```xml
+<dependency>
+   <groupId>org.vaadin.helper</groupId>
+   <artifactId>async-manager</artifactId>
+   <version>1.0.0-alpha1</version>
+</dependency>
+```
+
 ## Development instructions
 
 Starting the test/demo server:
