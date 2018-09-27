@@ -1,15 +1,19 @@
 package org.vaadin.flow.helper;
 
 import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
+import com.vaadin.flow.shared.communication.PushMode;
 
 @Route("")
 public class DemoView extends VerticalLayout implements BeforeEnterObserver {
+
+    private Checkbox pushToggle = new Checkbox("Enable push");
 
     // Poll 5 times first second, 2 time second, and once per second afterwards
     public DemoView() {
@@ -22,6 +26,9 @@ public class DemoView extends VerticalLayout implements BeforeEnterObserver {
             long newTimestamp = System.currentTimeMillis();
             add(new Label(String.format("POLLING: %d milliseconds has passed...", newTimestamp - lastTimestamp)));
             lastTimestamp = newTimestamp;
+        });
+        pushToggle.addValueChangeListener(value -> {
+            attachEvent.getUI().getPushConfiguration().setPushMode(value.getValue() ? PushMode.AUTOMATIC : PushMode.DISABLED);
         });
     }
 
@@ -37,6 +44,7 @@ public class DemoView extends VerticalLayout implements BeforeEnterObserver {
         removeAll();
 
         add(new RouterLink("Refresh", DemoView.class));
+        add(pushToggle);
         add(new Label("Waiting for asynchronous tasks..."));
 
         AsyncManager.register(this, asyncTask -> {

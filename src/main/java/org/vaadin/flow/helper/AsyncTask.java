@@ -4,6 +4,7 @@ import com.vaadin.flow.component.*;
 import com.vaadin.flow.router.BeforeLeaveEvent;
 import com.vaadin.flow.server.Command;
 import com.vaadin.flow.shared.Registration;
+import com.vaadin.flow.shared.communication.PushMode;
 
 import java.util.concurrent.FutureTask;
 
@@ -17,11 +18,8 @@ import java.util.concurrent.FutureTask;
 public class AsyncTask {
     /**
      * Create a new task
-     *
-     * @param component Owning component
      */
-    AsyncTask(Component component) {
-        this.parentComponent = component;
+    AsyncTask() {
     }
 
     /**
@@ -32,9 +30,9 @@ public class AsyncTask {
      * @param command Command to run
      */
     public void sync(Command command) {
-        if (parentComponent == null) return;
+        if (parentUI == null) return;
         if (missedPolls == PUSH_ACTIVE) {
-            throw new IllegalStateException("Sync is called but Polling Manager is not in polling mode");
+            throw new IllegalStateException("Sync is called but task is not in polling mode");
         }
         if (syncCommand != null) {
             throw new IllegalStateException("Sync can be used only once");
@@ -48,20 +46,18 @@ public class AsyncTask {
      * @param command Command to run
      */
     public void push(Command command) {
-        if (parentComponent == null) return;
-        parentComponent.getUI().ifPresent(ui -> {
-            if (missedPolls == PUSH_ACTIVE) {
-                ui.accessSynchronously(() -> {
+        if (parentUI == null) return;
+        if (missedPolls == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL) {
+            parentUI.accessSynchronously(() -> {
                     command.execute();
-                    ui.push();
+                parentUI.push();
                 });
-            } else {
-                // Automatic -- changes will be pushed automatically
-                // Disabled -- we're using polling and this is called
-                //             within UIDLRequestHandler
-                ui.accessSynchronously(command);
-            }
-        });
+        } else {
+            // Automatic -- changes will be pushed automatically
+            // Disabled -- we're using polling and this is called
+            //             within UIDLRequestHandler
+            parentUI.accessSynchronously(command);
+        }
     }
 
     /**
@@ -87,9 +83,9 @@ public class AsyncTask {
     private FutureTask<AsyncTask> task;
 
     /**
-     * Owning component for current task
+     * Owning UI for current task
      */
-    private Component parentComponent;
+    private UI parentUI;
 
     /**
      * Registration for PollEvent listener
@@ -120,7 +116,7 @@ public class AsyncTask {
      * Number of poll events happened while action is executing, or {@link #PUSH_ACTIVE} if
      * push is used for current task
      */
-    private int missedPolls = 0;
+    private volatile int missedPolls = 0;
 
     /**
      * Register action
@@ -129,30 +125,29 @@ public class AsyncTask {
      * @param forcePolling <tt>true</tt> if polling must be used
      * @param action       Action
      */
-    void register(UI ui, boolean forcePolling, AsyncAction action) {
+    void register(UI ui, Component component, boolean forcePolling, AsyncAction action) {
+        this.parentUI = ui;
         if (!forcePolling && ui.getPushConfiguration().getPushMode().isEnabled()) {
-            registerPush(ui, action);
+            registerPush(component, action);
         } else {
-            registerPoll(ui, action);
+            registerPoll(component, action);
         }
-
     }
 
     /**
      * Register action for push mode
      *
-     * @param ui     UI owning current view
      * @param action Action
      */
-    private void registerPush(UI ui, AsyncAction action) {
+    private void registerPush(Component component, AsyncAction action) {
         add();
         missedPolls = PUSH_ACTIVE;
 
         task = createFutureTask(action);
 
-        componentDetachListenerRegistration = parentComponent.addDetachListener(this::onDetachEvent);
-        uiDetachListenerRegistration = ui.addDetachListener(this::onDetachEvent);
-        beforeLeaveListenerRegistration = ui.addBeforeLeaveListener(this::onBeforeLeaveEvent);
+        componentDetachListenerRegistration = component.addDetachListener(this::onDetachEvent);
+        uiDetachListenerRegistration = parentUI.addDetachListener(this::onDetachEvent);
+        beforeLeaveListenerRegistration = parentUI.addBeforeLeaveListener(this::onBeforeLeaveEvent);
 
         execute();
     }
@@ -160,21 +155,20 @@ public class AsyncTask {
     /**
      * Register action for polling
      *
-     * @param ui     UI owning current view
      * @param action Action
      */
-    private void registerPoll(UI ui, AsyncAction action) {
+    private void registerPoll(Component component, AsyncAction action) {
         add();
 
         task = createFutureTask(action);
 
-        pollingListenerRegistration = ui.addPollListener(this::onPollEvent);
+        pollingListenerRegistration = parentUI.addPollListener(this::onPollEvent);
 
-        uiDetachListenerRegistration = ui.addDetachListener(this::onDetachEvent);
-        componentDetachListenerRegistration = parentComponent.addDetachListener(this::onDetachEvent);
-        beforeLeaveListenerRegistration = ui.addBeforeLeaveListener(this::onBeforeLeaveEvent);
+        uiDetachListenerRegistration = parentUI.addDetachListener(this::onDetachEvent);
+        componentDetachListenerRegistration = component.addDetachListener(this::onDetachEvent);
+        beforeLeaveListenerRegistration = parentUI.addBeforeLeaveListener(this::onBeforeLeaveEvent);
 
-        AsyncManager.adjustPollingInterval(parentComponent, ui);
+        AsyncManager.adjustPollingInterval(parentUI);
         execute();
     }
 
@@ -208,26 +202,28 @@ public class AsyncTask {
      * Add current task to {@link AsyncManager#asyncTasks}
      */
     private void add() {
-        AsyncManager.addAsyncTask(parentComponent, this);
+        AsyncManager.addAsyncTask(parentUI, this);
     }
 
     /**
      * Remove current task from {@link AsyncManager#asyncTasks} and unregister all listeners
      */
     private synchronized void remove() {
-        if (parentComponent != null) {
-            Component component = parentComponent;
-            parentComponent = null;
+        if (parentUI != null) {
+            AsyncManager.removeAsyncTask(parentUI, this);
+            // Polling interval needs to be adjusted if task is finished
+            try {
+                parentUI.accessSynchronously(() -> AsyncManager.adjustPollingInterval(parentUI));
+            } catch (UIDetachedException ignore) {
+                // ignore detached ui -- there will be no polling events for them anyway
+            }
 
-            AsyncManager.removeAsyncTask(component, this);
+            parentUI = null;
 
             if (componentDetachListenerRegistration != null) componentDetachListenerRegistration.remove();
             if (uiDetachListenerRegistration != null) uiDetachListenerRegistration.remove();
             if (pollingListenerRegistration != null) pollingListenerRegistration.remove();
             if (beforeLeaveListenerRegistration != null) beforeLeaveListenerRegistration.remove();
-
-            // Polling interval needs to be adjusted if task is finished
-            component.getUI().ifPresent(ui -> ui.accessSynchronously(() -> AsyncManager.adjustPollingInterval(component, ui)));
         }
     }
 
@@ -237,11 +233,12 @@ public class AsyncTask {
      * @return Polling interval in milliseconds
      */
     int getPollingInterval() {
-        if (missedPolls == PUSH_ACTIVE) return Integer.MAX_VALUE;
-        if (missedPolls >= AsyncManager.getPollingIntervals().length) {
+        int missed = missedPolls;
+        if (missed == PUSH_ACTIVE) return Integer.MAX_VALUE;
+        if (missed >= AsyncManager.getPollingIntervals().length) {
             return AsyncManager.getPollingIntervals()[AsyncManager.getPollingIntervals().length - 1];
         }
-        return AsyncManager.getPollingIntervals()[missedPolls];
+        return AsyncManager.getPollingIntervals()[missed];
     }
 
     /**
@@ -275,7 +272,10 @@ public class AsyncTask {
      * @param event component event
      */
     private void onPollEvent(PollEvent event) {
-        if (missedPolls != PUSH_ACTIVE) missedPolls++;
+        if (missedPolls != PUSH_ACTIVE) {
+            missedPolls++;
+            AsyncManager.adjustPollingInterval(parentUI);
+        }
         if (syncCommand != null) {
             try {
                 syncCommand.execute();

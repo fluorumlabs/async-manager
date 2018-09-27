@@ -38,7 +38,7 @@ Thread workerThread = new Thread(() -> {
 });
 workerThread.start();
 ```
-Now we have another tiny problem: we now need to clear polling interval if the user is 
+Now we have another tiny problem: we need to clear polling interval if the user is 
 leaving the view before thread finishes:
 ```java
 ui.setPollingInterval(200);
@@ -53,9 +53,10 @@ workerThread.start();
 addBeforeLeaveListener(event -> ui.setPollingInterval(-1));
 ```
 See how easy our 4 line snippet turns to 10 line monster? And what if we have 
-several of those worker threads? 
+several of those worker threads? Moreover, even if we have push enabled, something 
+should terminate threads when it's result is not needed anymore (i.e. user has left the view).
 
-Wander no more, there is an easy solution: **Async Manager**. It's really easy to use:
+But wander no more, there is an easy solution: **Async Manager**. It is really easy to use:
 ```java
 AsyncManager.register(this, asyncTask -> {
     SomeData result = doHeavyLifting();
@@ -63,9 +64,9 @@ AsyncManager.register(this, asyncTask -> {
 })
 ```
 AsyncManager supports both push and polling, and takes care of cleanup and thread 
-termination if user leaves the view. For polling it also supports
+termination. For polling mode it also supports
 dynamic polling intervals: i.e. you can have 5 polls per second in the
-first second and then throttle it to once per second:
+first second and then throttle it to send poll requests once per second:
 ```java
 AsyncManager.setPollingIntervals(200,200,200,200,200,1000);
 ```
@@ -75,6 +76,10 @@ want some custom logging or exception reporting:
 ```java
 AsyncManager.setExceptionHandler(exception -> ...);
 ```
+
+By default all worker threads are started by `ThreadPoolExecutor` which defaults
+to pool size of 25 threads. You can access instance of executor with 
+`AsyncManager.getExecutor()`.
 
 ## Development instructions
 

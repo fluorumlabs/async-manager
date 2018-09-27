@@ -66,14 +66,14 @@ public class AsyncManager implements Serializable {
     public static AsyncTask register(Component component, boolean forcePolling, AsyncAction action) {
         Objects.requireNonNull(component);
 
-        AsyncTask asyncTask = new AsyncTask(component);
+        AsyncTask asyncTask = new AsyncTask();
         Optional<UI> uiOptional = component.getUI();
         if (uiOptional.isPresent()) {
-            asyncTask.register(uiOptional.get(), forcePolling, action);
+            asyncTask.register(uiOptional.get(), component, forcePolling, action);
         } else {
             component.addAttachListener(attachEvent -> {
                 attachEvent.unregisterListener();
-                asyncTask.register(attachEvent.getUI(), forcePolling, action);
+                asyncTask.register(attachEvent.getUI(), component, forcePolling, action);
             });
         }
         return asyncTask;
@@ -139,7 +139,7 @@ public class AsyncManager implements Serializable {
     /**
      * List of all registered {@link AsyncTask} per component instance
      */
-    private static Map<Component, Set<AsyncTask>> asyncTasks = Collections.synchronizedMap(new WeakHashMap<>());
+    private static Map<UI, Set<AsyncTask>> asyncTasks = Collections.synchronizedMap(new WeakHashMap<>());
 
     /**
      * Exception handler
@@ -163,41 +163,40 @@ public class AsyncManager implements Serializable {
     /**
      * Get list of active asynchronous tasks for specified component
      *
-     * @param component Owning component
+     * @param ui Owning UI
      * @return Set of {@link AsyncTask}
      */
-    private static Set<AsyncTask> getAsyncTasks(Component component) {
-        return asyncTasks.computeIfAbsent(component, parentComponent -> Collections.synchronizedSet(new HashSet<>()));
+    private static Set<AsyncTask> getAsyncTasks(UI ui) {
+        return asyncTasks.computeIfAbsent(ui, parentComponent -> Collections.synchronizedSet(new HashSet<>()));
     }
 
     /**
      * Add {@link AsyncTask} to the {@link #asyncTasks} for current component
      *
-     * @param component Owning component
+     * @param ui        Owning UI
      * @param task      Task
      */
-    static void addAsyncTask(Component component, AsyncTask task) {
-        AsyncManager.getAsyncTasks(component).add(task);
+    static void addAsyncTask(UI ui, AsyncTask task) {
+        AsyncManager.getAsyncTasks(ui).add(task);
     }
 
     /**
      * Remove {@link AsyncTask} from the {@link #asyncTasks} for current component
      *
-     * @param component Owning component
+     * @param ui        Owning UI
      * @param task      Task
      */
-    static void removeAsyncTask(Component component, AsyncTask task) {
-        AsyncManager.getAsyncTasks(component).remove(task);
+    static void removeAsyncTask(UI ui, AsyncTask task) {
+        AsyncManager.getAsyncTasks(ui).remove(task);
     }
 
     /**
      * Adjust polling interval for specified component.
      *
-     * @param component Component owning asynchronous tasks
-     * @param ui        UI, associated with
+     * @param ui        UI, associated with current task
      */
-    static void adjustPollingInterval(Component component, UI ui) {
-        int newInterval = AsyncManager.getAsyncTasks(component).stream()
+    static void adjustPollingInterval(UI ui) {
+        int newInterval = AsyncManager.getAsyncTasks(ui).stream()
                 .map(AsyncTask::getPollingInterval)
                 .sorted()
                 .findFirst().orElse(Integer.MAX_VALUE);
