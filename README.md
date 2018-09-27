@@ -1,3 +1,7 @@
+[![Published on Vaadin  Directory](https://img.shields.io/badge/Vaadin%20Directory-published-00b4f0.svg)](https://vaadin.com/directory/component/async-manager)
+[![Latest published version](https://img.shields.io/vaadin-directory/v/async-manager.svg)](https://vaadin.com/directory/component/async-manager)
+[![Stars on vaadin.com/directory](https://img.shields.io/vaadin-directory/star/async-manager.svg)](https://vaadin.com/directory/component/async-manager)
+
 # Async Manager for Vaadin Flow
 
 In complex application quite often you end up having a view that takes ages to load
