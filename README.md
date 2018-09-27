@@ -87,7 +87,6 @@ to pool size of 25 threads. If you want to increase it or change other settings,
 
 ## Installing with Maven
 
-Installing with Maven:
 ```xml
 <repository>
    <id>vaadin-addons</id>
