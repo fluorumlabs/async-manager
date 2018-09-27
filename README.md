@@ -62,7 +62,7 @@ AsyncManager.register(this, asyncTask -> {
     asyncTask.push(() -> showData(result));
 })
 ```
-AsyncManager takes care of polling (if needed), cleanup and it will
+AsyncManager takes care of polling (push is also supported), cleanup and it will
 even terminate worker threads if you leave the view. It also supports
 dynamic polling intervals: i.e. you can have 5 polls per second in the
 first second and then throttle it to once per second:
