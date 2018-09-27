@@ -3,7 +3,6 @@ package org.vaadin.flow.helper;
 import com.vaadin.external.org.slf4j.LoggerFactory;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.server.Command;
 
 import java.io.Serializable;
 import java.util.*;
@@ -49,31 +48,16 @@ public class AsyncManager implements Serializable {
      * @return {@link AsyncTask}, associated with this action
      */
     public static AsyncTask register(Component component, AsyncAction action) {
-        return register(component, false, action);
-    }
-
-    /**
-     * Register and start a new deferred action. Action are started immediately in a separate thread and do not hold
-     * {@code UI} or {@code VaadinSession} locks. Polling mode can be forced for this action even if push is enabled,
-     * which allows to use {@link AsyncTask#sync(Command)} for doing UI operations requiring access to {@code VaadinResponse}
-     * (for example, to add a cookie)
-     *
-     * @param component    Component, where the action needs to be performed, typically your view
-     * @param forcePolling If <tt>true</tt>, polling will be used even if push is enabled
-     * @param action       Action
-     * @return {@link AsyncTask}, associated with this action
-     */
-    public static AsyncTask register(Component component, boolean forcePolling, AsyncAction action) {
         Objects.requireNonNull(component);
 
         AsyncTask asyncTask = new AsyncTask();
-        Optional<UI> uiOptional = component.getUI();
-        if (uiOptional.isPresent()) {
-            asyncTask.register(uiOptional.get(), component, forcePolling, action);
+        UI ui = component.getUI().orElse(null);
+        if (ui != null) {
+            asyncTask.register(ui, component, action);
         } else {
             component.addAttachListener(attachEvent -> {
                 attachEvent.unregisterListener();
-                asyncTask.register(attachEvent.getUI(), component, forcePolling, action);
+                asyncTask.register(attachEvent.getUI(), component, action);
             });
         }
         return asyncTask;
@@ -173,8 +157,8 @@ public class AsyncManager implements Serializable {
     /**
      * Add {@link AsyncTask} to the {@link #asyncTasks} for current component
      *
-     * @param ui        Owning UI
-     * @param task      Task
+     * @param ui   Owning UI
+     * @param task Task
      */
     static void addAsyncTask(UI ui, AsyncTask task) {
         AsyncManager.getAsyncTasks(ui).add(task);
@@ -183,8 +167,8 @@ public class AsyncManager implements Serializable {
     /**
      * Remove {@link AsyncTask} from the {@link #asyncTasks} for current component
      *
-     * @param ui        Owning UI
-     * @param task      Task
+     * @param ui   Owning UI
+     * @param task Task
      */
     static void removeAsyncTask(UI ui, AsyncTask task) {
         AsyncManager.getAsyncTasks(ui).remove(task);
@@ -193,7 +177,7 @@ public class AsyncManager implements Serializable {
     /**
      * Adjust polling interval for specified component.
      *
-     * @param ui        UI, associated with current task
+     * @param ui UI, associated with current task
      */
     static void adjustPollingInterval(UI ui) {
         int newInterval = AsyncManager.getAsyncTasks(ui).stream()

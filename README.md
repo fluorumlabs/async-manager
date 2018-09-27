@@ -12,7 +12,7 @@ ui.access(() -> {
 });
 ```
 While it will make load time much faster, there is a problem there: since the UI is
-blocked by computation thread, user will have to wait for finish before his actions 
+blocked by computation thread, user will have to wait for it to finish before his actions 
 will be processed. That is, he will see the same loading indicator if he, for example,
 click some button that has server side click listener.
 
@@ -54,7 +54,7 @@ addBeforeLeaveListener(event -> ui.setPollingInterval(-1));
 ```
 See how easy our 4 line snippet turns to 10 line monster? And what if we have 
 several of those worker threads? Moreover, even if we have push enabled, something 
-should terminate threads when it's result is not needed anymore (i.e. user has left the view).
+should terminate threads when their results are not needed anymore (i.e. user has left the view).
 
 But wander no more, there is an easy solution: **Async Manager**. It is really easy to use:
 ```java
@@ -68,7 +68,7 @@ termination. For polling mode it also supports
 dynamic polling intervals: i.e. you can have 5 polls per second in the
 first second and then throttle it to send poll requests once per second:
 ```java
-AsyncManager.setPollingIntervals(200,200,200,200,200,1000);
+AsyncManager.setPollingIntervals(200, 200, 200, 200, 200, 1000);
 ```
 
 It is also possible to set custom exception handler if you
@@ -77,8 +77,8 @@ want some custom logging or exception reporting:
 AsyncManager.setExceptionHandler(exception -> ...);
 ```
 
-By default all worker threads are started by `ThreadPoolExecutor` which defaults
-to pool size of 25 threads. You can access instance of executor with 
+Note: By default all worker threads are started by `ThreadPoolExecutor` which defaults
+to pool size of 25 threads. If you want to increase it or change other settings, you can access instance of executor with 
 `AsyncManager.getExecutor()`.
 
 ## Development instructions

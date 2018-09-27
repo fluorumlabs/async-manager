@@ -10,7 +10,7 @@ import java.util.concurrent.FutureTask;
 
 /**
  * Asynchronous task created by {@link AsyncManager#register(Component, AsyncAction)} or
- * {@link AsyncManager#register(Component, boolean, AsyncAction)}.
+ * {@link AsyncManager#register(Component, AsyncAction)}.
  *
  * @author Artem Godin
  * @see AsyncManager
@@ -23,24 +23,6 @@ public class AsyncTask {
     }
 
     /**
-     * Perform command in {@code VaadinRequest} context. That requires the AsyncTask to be registered
-     * in a polling mode. The command will be executed in PollEvent listener meaning that
-     * {@link UI#accessSynchronously(Command)} is not needed.
-     *
-     * @param command Command to run
-     */
-    public void sync(Command command) {
-        if (parentUI == null) return;
-        if (missedPolls == PUSH_ACTIVE) {
-            throw new IllegalStateException("Sync is called but task is not in polling mode");
-        }
-        if (syncCommand != null) {
-            throw new IllegalStateException("Sync can be used only once");
-        }
-        syncCommand = command;
-    }
-
-    /**
      * Perform command in UI context. It uses {@link UI#accessSynchronously(Command)} internally.
      *
      * @param command Command to run
@@ -49,9 +31,9 @@ public class AsyncTask {
         if (parentUI == null) return;
         if (missedPolls == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL) {
             parentUI.accessSynchronously(() -> {
-                    command.execute();
+                command.execute();
                 parentUI.push();
-                });
+            });
         } else {
             // Automatic -- changes will be pushed automatically
             // Disabled -- we're using polling and this is called
@@ -108,11 +90,6 @@ public class AsyncTask {
     private Registration beforeLeaveListenerRegistration;
 
     /**
-     * Command that needs to be executed in VaadinRequest context
-     */
-    private Command syncCommand;
-
-    /**
      * Number of poll events happened while action is executing, or {@link #PUSH_ACTIVE} if
      * push is used for current task
      */
@@ -121,13 +98,12 @@ public class AsyncTask {
     /**
      * Register action
      *
-     * @param ui           UI owning current view
-     * @param forcePolling <tt>true</tt> if polling must be used
-     * @param action       Action
+     * @param ui     UI owning current view
+     * @param action Action
      */
-    void register(UI ui, Component component, boolean forcePolling, AsyncAction action) {
+    void register(UI ui, Component component, AsyncAction action) {
         this.parentUI = ui;
-        if (!forcePolling && ui.getPushConfiguration().getPushMode().isEnabled()) {
+        if (ui.getPushConfiguration().getPushMode().isEnabled()) {
             registerPush(component, action);
         } else {
             registerPoll(component, action);
@@ -191,9 +167,7 @@ public class AsyncTask {
                 // Dump
                 AsyncManager.handleException(e);
             } finally {
-                if (syncCommand == null && !Thread.currentThread().isInterrupted()) {
-                    remove();
-                }
+                remove();
             }
         }, this);
     }
@@ -213,17 +187,19 @@ public class AsyncTask {
             AsyncManager.removeAsyncTask(parentUI, this);
             // Polling interval needs to be adjusted if task is finished
             try {
-                parentUI.accessSynchronously(() -> AsyncManager.adjustPollingInterval(parentUI));
+                parentUI.accessSynchronously(() -> {
+                    AsyncManager.adjustPollingInterval(parentUI);
+
+                    if (componentDetachListenerRegistration != null) componentDetachListenerRegistration.remove();
+                    if (uiDetachListenerRegistration != null) uiDetachListenerRegistration.remove();
+                    if (pollingListenerRegistration != null) pollingListenerRegistration.remove();
+                    if (beforeLeaveListenerRegistration != null) beforeLeaveListenerRegistration.remove();
+                });
             } catch (UIDetachedException ignore) {
                 // ignore detached ui -- there will be no polling events for them anyway
             }
 
             parentUI = null;
-
-            if (componentDetachListenerRegistration != null) componentDetachListenerRegistration.remove();
-            if (uiDetachListenerRegistration != null) uiDetachListenerRegistration.remove();
-            if (pollingListenerRegistration != null) pollingListenerRegistration.remove();
-            if (beforeLeaveListenerRegistration != null) beforeLeaveListenerRegistration.remove();
         }
     }
 
@@ -275,14 +251,6 @@ public class AsyncTask {
         if (missedPolls != PUSH_ACTIVE) {
             missedPolls++;
             AsyncManager.adjustPollingInterval(parentUI);
-        }
-        if (syncCommand != null) {
-            try {
-                syncCommand.execute();
-            } catch (RuntimeException e) {
-                AsyncManager.handleException(e);
-            }
-            remove();
         }
     }
 }
