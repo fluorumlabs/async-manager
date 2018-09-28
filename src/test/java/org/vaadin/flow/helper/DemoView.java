@@ -14,10 +14,11 @@ import com.vaadin.flow.shared.communication.PushMode;
 public class DemoView extends VerticalLayout implements BeforeEnterObserver {
 
     private Checkbox pushToggle = new Checkbox("Enable push");
+    private long lastTimestamp;
 
     // Poll 5 times first second, 2 time second, and once per second afterwards
     public DemoView() {
-        AsyncManager.setPollingIntervals(200, 200, 200, 200, 200, 500, 500, 1000);
+        AsyncManager.getInstance().setPollingIntervals(200, 200, 200, 200, 200, 500, 500, 1000);
     }
 
     @Override
@@ -27,9 +28,7 @@ public class DemoView extends VerticalLayout implements BeforeEnterObserver {
             add(new Label(String.format("POLLING: %d milliseconds has passed...", newTimestamp - lastTimestamp)));
             lastTimestamp = newTimestamp;
         });
-        pushToggle.addValueChangeListener(value -> {
-            attachEvent.getUI().getPushConfiguration().setPushMode(value.getValue() ? PushMode.AUTOMATIC : PushMode.DISABLED);
-        });
+        pushToggle.addValueChangeListener(value -> attachEvent.getUI().getPushConfiguration().setPushMode(value.getValue() ? PushMode.AUTOMATIC : PushMode.DISABLED));
     }
 
     /**
@@ -67,6 +66,4 @@ public class DemoView extends VerticalLayout implements BeforeEnterObserver {
             asyncTask.push(() -> add(new Label("ASYNC TASK: 5 seconds has passed")));
         });
     }
-
-    private long lastTimestamp;
 }

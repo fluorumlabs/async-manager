@@ -7,7 +7,6 @@ import com.vaadin.flow.component.Component;
  *
  * @author Artem Godin
  * @see AsyncManager#register(Component, AsyncAction)
- * @see AsyncManager#register(Component, boolean, AsyncAction)
  */
 @FunctionalInterface
 public interface AsyncAction {

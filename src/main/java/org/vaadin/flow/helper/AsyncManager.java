@@ -4,11 +4,9 @@ import com.vaadin.external.org.slf4j.LoggerFactory;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 
-import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -31,47 +29,91 @@ import java.util.function.Consumer;
  * of interrupting tasks when the view is detached from UI or if the UI leaves current view.
  * <p>
  * Initial configuration of AsyncManager can be done using {@link AsyncManager#setExceptionHandler(Consumer)},
- * {@link AsyncManager#setPollingIntervals(int...)} and {@link AsyncManager#getExecutor()} static methods.
+ * {@link AsyncManager#setPollingIntervals(int...)} and {@link AsyncManager#setExecutorService(ExecutorService)} static methods.
  *
  * @author Artem Godin
  * @see AsyncTask
  * @see AsyncAction
  */
-public class AsyncManager implements Serializable {
+public class AsyncManager {
+    //--- Defaults
+
+    /**
+     * Default pool size (25 threads)
+     */
+    private static final int DEFAULT_POOL_SIZE = 25;
+    /**
+     * Default polling intervals (200 ms)
+     */
+    private static final int[] DEFAULT_POLLING_INTERVALS = {200};
+
+    //--- The one and only instance of AsyncManager
+
+    /**
+     * Instance of AsyncManager
+     */
+    private static AsyncManager instance;
+
+    //-- Private fields
+
+    /**
+     * List of all registered {@link AsyncTask} per component instance
+     */
+    private Map<UI, Set<AsyncTask>> asyncTasks = Collections.synchronizedMap(new WeakHashMap<>());
+    /**
+     * Exception handler
+     */
+    private Consumer<Exception> exceptionHandler = AsyncManager::logException;
+    /**
+     * Instance of {@link ExecutorService} used for asynchronous tasks
+     */
+    private ExecutorService executorService = Executors.newFixedThreadPool(DEFAULT_POOL_SIZE);
+    /**
+     * Polling intervals
+     */
+    private int[] pollingIntervals = DEFAULT_POLLING_INTERVALS;
+
+    private AsyncManager() { // Not directly instantiatable
+    }
+
+    //--- Static methods
+
+    /**
+     * Get instance of AsyncManager
+     *
+     * @return Instance of AsyncManager
+     */
+    public static synchronized AsyncManager getInstance() {
+        if (instance == null) {
+            instance = new AsyncManager();
+        }
+        return instance;
+    }
 
     /**
      * Register and start a new deferred action. Action are started immediately in a separate thread and do not hold
      * {@code UI} or {@code VaadinSession} locks.
+     * <p>
+     * Shorthand for {@code AsyncManager.getInstance().registerAsync(component, action)}
      *
      * @param component Component, where the action needs to be performed, typically your view
      * @param action    Action
      * @return {@link AsyncTask}, associated with this action
      */
     public static AsyncTask register(Component component, AsyncAction action) {
-        Objects.requireNonNull(component);
-
-        AsyncTask asyncTask = new AsyncTask();
-        UI ui = component.getUI().orElse(null);
-        if (ui != null) {
-            asyncTask.register(ui, component, action);
-        } else {
-            component.addAttachListener(attachEvent -> {
-                attachEvent.unregisterListener();
-                asyncTask.register(attachEvent.getUI(), component, action);
-            });
-        }
-        return asyncTask;
+        return getInstance().registerAsync(component, action);
     }
 
     /**
-     * Get a {@link ThreadPoolExecutor} used for asynchronous task execution. This can be used to
-     * adjust thread pool size.
+     * Default exception handler that simply logs the exception
      *
-     * @return static instance of {@link ThreadPoolExecutor}
+     * @param e Exception to handle
      */
-    public static ThreadPoolExecutor getExecutor() {
-        return executor;
+    private static void logException(Throwable e) {
+        LoggerFactory.getLogger(AsyncManager.class.getName()).warn(e.getMessage(), e);
     }
+
+    //--- Getters and setters
 
     /**
      * Set custom exception handler for exceptions thrown in async tasks if you need custom logging or
@@ -79,8 +121,33 @@ public class AsyncManager implements Serializable {
      *
      * @param handler Exception handler to set
      */
-    public static void setExceptionHandler(Consumer<Exception> handler) {
-        AsyncManager.exceptionHandler = handler;
+    public void setExceptionHandler(Consumer<Exception> handler) {
+        exceptionHandler = handler;
+    }
+
+    /**
+     * Get a {@link ExecutorService} used for asynchronous task execution.
+     *
+     * @return static instance of {@link ExecutorService}
+     */
+    ExecutorService getExecutorService() {
+        return executorService;
+    }
+
+    /**
+     * Set {@link ExecutorService} to be used for asynchronous task execution.
+     */
+    public void setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    /**
+     * Get polling intervals
+     *
+     * @return polling intervals in milliseconds
+     */
+    int[] getPollingIntervals() {
+        return pollingIntervals;
     }
 
     /**
@@ -94,55 +161,38 @@ public class AsyncManager implements Serializable {
      *
      * @param milliseconds Polling intervals in milliseconds
      */
-    public static void setPollingIntervals(int... milliseconds) {
+    public void setPollingIntervals(int... milliseconds) {
         if (milliseconds.length == 0) {
-            AsyncManager.pollingIntervals = DEFAULT_POLLING_INTERVALS;
+            pollingIntervals = DEFAULT_POLLING_INTERVALS;
         }
-        AsyncManager.pollingIntervals = milliseconds;
-    }
-
-    private AsyncManager() { // Not directly instantiatable
+        pollingIntervals = milliseconds;
     }
 
     /**
-     * Default pool size (25 threads)
-     */
-    private static final int DEFAULT_POOL_SIZE = 25;
-
-    /**
-     * Default polling intervals (200 ms)
-     */
-    private static final int[] DEFAULT_POLLING_INTERVALS = {200};
-
-    /**
-     * Instance of {@link ThreadPoolExecutor} used for asynchronous tasks
-     */
-    private static final ThreadPoolExecutor executor = new ThreadPoolExecutor(DEFAULT_POOL_SIZE, DEFAULT_POOL_SIZE,
-            0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-
-    /**
-     * List of all registered {@link AsyncTask} per component instance
-     */
-    private static Map<UI, Set<AsyncTask>> asyncTasks = Collections.synchronizedMap(new WeakHashMap<>());
-
-    /**
-     * Exception handler
-     */
-    private static Consumer<Exception> exceptionHandler = AsyncManager::logException;
-
-    /**
-     * Polling intervals
-     */
-    private static int[] pollingIntervals = DEFAULT_POLLING_INTERVALS;
-
-    /**
-     * Default exception handler that simply logs the exception
+     * Register and start a new deferred action. Action are started immediately in a separate thread and do not hold
+     * {@code UI} or {@code VaadinSession} locks.
      *
-     * @param e Exception to handle
+     * @param component Component, where the action needs to be performed, typically your view
+     * @param action    Action
+     * @return {@link AsyncTask}, associated with this action
      */
-    private static void logException(Throwable e) {
-        LoggerFactory.getLogger(AsyncManager.class.getName()).warn(e.getMessage(), e);
+    public AsyncTask registerAsync(Component component, AsyncAction action) {
+        Objects.requireNonNull(component);
+
+        AsyncTask asyncTask = new AsyncTask(this);
+        UI ui = component.getUI().orElse(null);
+        if (ui != null) {
+            asyncTask.register(ui, component, action);
+        } else {
+            component.addAttachListener(attachEvent -> {
+                attachEvent.unregisterListener();
+                asyncTask.register(attachEvent.getUI(), component, action);
+            });
+        }
+        return asyncTask;
     }
+
+    //--- Implementation
 
     /**
      * Get list of active asynchronous tasks for specified component
@@ -150,7 +200,7 @@ public class AsyncManager implements Serializable {
      * @param ui Owning UI
      * @return Set of {@link AsyncTask}
      */
-    private static Set<AsyncTask> getAsyncTasks(UI ui) {
+    private Set<AsyncTask> getAsyncTasks(UI ui) {
         return asyncTasks.computeIfAbsent(ui, parentComponent -> Collections.synchronizedSet(new HashSet<>()));
     }
 
@@ -160,8 +210,8 @@ public class AsyncManager implements Serializable {
      * @param ui   Owning UI
      * @param task Task
      */
-    static void addAsyncTask(UI ui, AsyncTask task) {
-        AsyncManager.getAsyncTasks(ui).add(task);
+    void addAsyncTask(UI ui, AsyncTask task) {
+        getAsyncTasks(ui).add(task);
     }
 
     /**
@@ -170,8 +220,8 @@ public class AsyncManager implements Serializable {
      * @param ui   Owning UI
      * @param task Task
      */
-    static void removeAsyncTask(UI ui, AsyncTask task) {
-        AsyncManager.getAsyncTasks(ui).remove(task);
+    void removeAsyncTask(UI ui, AsyncTask task) {
+        getAsyncTasks(ui).remove(task);
     }
 
     /**
@@ -179,8 +229,8 @@ public class AsyncManager implements Serializable {
      *
      * @param ui UI, associated with current task
      */
-    static void adjustPollingInterval(UI ui) {
-        int newInterval = AsyncManager.getAsyncTasks(ui).stream()
+    void adjustPollingInterval(UI ui) {
+        int newInterval = getAsyncTasks(ui).stream()
                 .map(AsyncTask::getPollingInterval)
                 .sorted()
                 .findFirst().orElse(Integer.MAX_VALUE);
@@ -200,16 +250,8 @@ public class AsyncManager implements Serializable {
      *
      * @param e Exception to handle
      */
-    static void handleException(Exception e) {
-        AsyncManager.exceptionHandler.accept(e);
+    void handleException(Exception e) {
+        exceptionHandler.accept(e);
     }
 
-    /**
-     * Get polling intervals
-     *
-     * @return polling intervals in milliseconds
-     */
-    static int[] getPollingIntervals() {
-        return pollingIntervals;
-    }
 }

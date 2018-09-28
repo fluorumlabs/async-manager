@@ -72,18 +72,17 @@ termination. For polling mode it also supports
 dynamic polling intervals: i.e. you can have 5 polls per second in the
 first second and then throttle it to send poll requests once per second:
 ```java
-AsyncManager.setPollingIntervals(200, 200, 200, 200, 200, 1000);
+AsyncManager.getInstance().setPollingIntervals(200, 200, 200, 200, 200, 1000);
 ```
 
 It is also possible to set custom exception handler if you
 want some custom logging or exception reporting:
 ```java
-AsyncManager.setExceptionHandler(exception -> ...);
+AsyncManager.getInstance().setExceptionHandler(exception -> ...);
 ```
 
 Note: By default all worker threads are started by `ThreadPoolExecutor` which defaults
-to pool size of 25 threads. If you want to increase it or change other settings, you can access instance of executor with 
-`AsyncManager.getExecutor()`.
+to pool size of 25 threads. You can change that with `AsyncManager.getInstance().setExecutorService()`.
 
 ## Installing with Maven
 
@@ -98,7 +97,7 @@ to pool size of 25 threads. If you want to increase it or change other settings,
 <dependency>
    <groupId>org.vaadin.helper</groupId>
    <artifactId>async-manager</artifactId>
-   <version>1.0.0-alpha1</version>
+   <version>1.0.0-alpha2</version>
 </dependency>
 ```
 
