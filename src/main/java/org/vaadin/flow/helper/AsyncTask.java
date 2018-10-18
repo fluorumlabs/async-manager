@@ -193,7 +193,7 @@ public class AsyncTask {
     /**
      * Remove current task from {@link AsyncManager#asyncTasks} and unregister all listeners
      */
-    private synchronized void remove() {
+    private void remove() {
         if (parentUI != null) {
             asyncManager.removeAsyncTask(parentUI, this);
             // Polling interval needs to be adjusted if task is finished
@@ -205,6 +205,11 @@ public class AsyncTask {
                     if (uiDetachListenerRegistration != null) uiDetachListenerRegistration.remove();
                     if (pollingListenerRegistration != null) pollingListenerRegistration.remove();
                     if (beforeLeaveListenerRegistration != null) beforeLeaveListenerRegistration.remove();
+
+                    componentDetachListenerRegistration = null;
+                    uiDetachListenerRegistration = null;
+                    pollingListenerRegistration = null;
+                    beforeLeaveListenerRegistration = null;
                 });
             } catch (UIDetachedException ignore) {
                 // ignore detached ui -- there will be no polling events for them anyway
