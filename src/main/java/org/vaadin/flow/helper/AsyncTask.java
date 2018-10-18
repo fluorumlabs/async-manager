@@ -3,6 +3,7 @@ package org.vaadin.flow.helper;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.router.BeforeLeaveEvent;
 import com.vaadin.flow.server.Command;
+import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.shared.communication.PushMode;
 
@@ -91,9 +92,11 @@ public class AsyncTask {
      * Cancel and unregister the task
      */
     public void cancel() {
+        /* FIXME Investigate what's happening when thread is interrupted during accessSynchronously
         if (!task.isCancelled() && !task.isDone()) {
             task.cancel(true);
         }
+        */
         remove();
     }
 
