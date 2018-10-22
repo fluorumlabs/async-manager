@@ -1,6 +1,7 @@
 [![Published on Vaadin  Directory](https://img.shields.io/badge/Vaadin%20Directory-published-00b4f0.svg)](https://vaadin.com/directory/component/async-manager)
 [![Latest published version](https://img.shields.io/vaadin-directory/v/async-manager.svg)](https://vaadin.com/directory/component/async-manager)
 [![Stars on vaadin.com/directory](https://img.shields.io/vaadin-directory/star/async-manager.svg)](https://vaadin.com/directory/component/async-manager)
+![Build status](https://travis-ci.com/fluorumlabs/async-manager.svg?branch=master)
 
 # Async Manager for Vaadin Flow
 
