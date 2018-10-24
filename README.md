@@ -79,7 +79,7 @@ AsyncManager.getInstance().setPollingIntervals(200, 200, 200, 200, 200, 1000);
 It is also possible to set custom exception handler if you
 want some custom logging or exception reporting:
 ```java
-AsyncManager.getInstance().setExceptionHandler(exception -> ...);
+AsyncManager.getInstance().setExceptionHandler((task, exception) -> ...);
 ```
 
 Note: By default all worker threads are started by `ThreadPoolExecutor` which defaults
@@ -98,7 +98,7 @@ to pool size of 25 threads. You can change that with `AsyncManager.getInstance()
 <dependency>
    <groupId>org.vaadin.helper</groupId>
    <artifactId>async-manager</artifactId>
-   <version>1.0.0-alpha3</version>
+   <version>1.0.0-alpha4</version>
 </dependency>
 ```
 

@@ -63,7 +63,7 @@ public class AsyncManager {
     /**
      * Exception handler
      */
-    private Consumer<Exception> exceptionHandler = AsyncManager::logException;
+    private ExceptionHandler exceptionHandler = AsyncManager::logException;
     /**
      * Instance of {@link ExecutorService} used for asynchronous tasks
      */
@@ -107,9 +107,10 @@ public class AsyncManager {
     /**
      * Default exception handler that simply logs the exception
      *
-     * @param e Exception to handle
+     * @param task AsyncTask where exception happened
+     * @param e    Exception to handle
      */
-    private static void logException(Throwable e) {
+    private static void logException(AsyncTask task, Throwable e) {
         LoggerFactory.getLogger(AsyncManager.class.getName()).warn(e.getMessage(), e);
     }
 
@@ -121,7 +122,7 @@ public class AsyncManager {
      *
      * @param handler Exception handler to set
      */
-    public void setExceptionHandler(Consumer<Exception> handler) {
+    public void setExceptionHandler(ExceptionHandler handler) {
         exceptionHandler = handler;
     }
 
@@ -250,8 +251,21 @@ public class AsyncManager {
      *
      * @param e Exception to handle
      */
-    void handleException(Exception e) {
-        exceptionHandler.accept(e);
+    void handleException(AsyncTask task, Exception e) {
+        exceptionHandler.handle(task, e);
     }
 
+    /**
+     * Functional interface for exception handling
+     */
+    @FunctionalInterface
+    public interface ExceptionHandler {
+        /**
+         * Handle exception happened during {@code task} execution.
+         *
+         * @param task AsyncTask where exception happened
+         * @param e    Exception
+         */
+        void handle(AsyncTask task, Exception e);
+    }
 }

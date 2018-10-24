@@ -97,6 +97,16 @@ public class AsyncTask {
         remove();
     }
 
+    /**
+     * Get instance of UI with which this task is associated
+     *
+     * @return UI instance or {@code null} if task was cancelled or has finished
+     * the execution
+     */
+    public UI getUI() {
+        return parentUI;
+    }
+
     //--- Implementation
 
     /**
@@ -169,7 +179,7 @@ public class AsyncTask {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
                 // Dump
-                asyncManager.handleException(e);
+                asyncManager.handleException(this, e);
             } finally {
                 remove();
             }
