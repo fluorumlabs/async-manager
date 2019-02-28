@@ -76,8 +76,16 @@ public class AsyncTask {
         if (parentUI == null) return;
         if (missedPolls == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL) {
             parentUI.accessSynchronously(() -> {
-                command.execute();
-                parentUI.push();
+                try {
+                    command.execute();
+                    parentUI.push();
+                } catch (UIDetachedException ignore) {
+                    // Do not report
+                    // How could this even happen?
+                } catch (Exception e) {
+                    // Dump
+                    asyncManager.handleException(this, e);
+                }
             });
         } else {
             // Automatic -- changes will be pushed automatically
