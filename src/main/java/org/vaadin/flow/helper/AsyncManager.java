@@ -2,6 +2,7 @@ package org.vaadin.flow.helper;
 
 import com.vaadin.external.org.slf4j.LoggerFactory;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.UI;
 
 import java.util.*;
@@ -28,14 +29,14 @@ import java.util.function.Consumer;
  * to the client. If push is not enabled in your application, it will use polling instead. {@code AsyncManager} takes care
  * of interrupting tasks when the view is detached from UI or if the UI leaves current view.
  * <p>
- * Initial configuration of AsyncManager can be done using {@link AsyncManager#setExceptionHandler(Consumer)},
+ * Initial configuration of AsyncManager can be done using {@link AsyncManager#setExceptionHandler(ExceptionHandler)},
  * {@link AsyncManager#setPollingIntervals(int...)} and {@link AsyncManager#setExecutorService(ExecutorService)} static methods.
  *
  * @author Artem Godin
  * @see AsyncTask
  * @see AsyncAction
  */
-public class AsyncManager {
+public final class AsyncManager {
     //--- Defaults
 
     /**
@@ -47,6 +48,8 @@ public class AsyncManager {
      */
     private static final int[] DEFAULT_POLLING_INTERVALS = {200};
 
+    private static final String ASYNC_TASKS_KEY = "org.vaadin.flow.helper.AsyncManager";
+
     //--- The one and only instance of AsyncManager
 
     /**
@@ -56,10 +59,6 @@ public class AsyncManager {
 
     //-- Private fields
 
-    /**
-     * List of all registered {@link AsyncTask} per component instance
-     */
-    private Map<UI, Set<AsyncTask>> asyncTasks = Collections.synchronizedMap(new WeakHashMap<>());
     /**
      * Exception handler
      */
@@ -201,12 +200,18 @@ public class AsyncManager {
      * @param ui Owning UI
      * @return Set of {@link AsyncTask}
      */
+    @SuppressWarnings("unchecked")
     private Set<AsyncTask> getAsyncTasks(UI ui) {
-        return asyncTasks.computeIfAbsent(ui, parentComponent -> Collections.synchronizedSet(new HashSet<>()));
+        Set<AsyncTask> asyncTasks = (Set<AsyncTask>) ComponentUtil.getData(ui, ASYNC_TASKS_KEY);
+        if ( asyncTasks == null ) {
+            asyncTasks = Collections.synchronizedSet(new HashSet<>());
+            ComponentUtil.setData(ui, ASYNC_TASKS_KEY, asyncTasks);
+        }
+        return asyncTasks;
     }
 
     /**
-     * Add {@link AsyncTask} to the {@link #asyncTasks} for current component
+     * Add {@link AsyncTask} for current component
      *
      * @param ui   Owning UI
      * @param task Task
@@ -216,7 +221,7 @@ public class AsyncManager {
     }
 
     /**
-     * Remove {@link AsyncTask} from the {@link #asyncTasks} for current component
+     * Remove {@link AsyncTask} for current component
      *
      * @param ui   Owning UI
      * @param task Task

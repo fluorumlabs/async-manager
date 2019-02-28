@@ -6,7 +6,9 @@ import com.vaadin.flow.server.Command;
 import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.shared.communication.PushMode;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Asynchronous task created by {@link AsyncManager#register(Component, AsyncAction)}
@@ -56,7 +58,7 @@ public class AsyncTask {
      * Number of poll events happened while action is executing, or {@link #PUSH_ACTIVE} if
      * push is used for current task
      */
-    private volatile int missedPolls = 0;
+    private AtomicInteger missedPolls = new AtomicInteger();
 
     /**
      * Create a new task
@@ -73,8 +75,10 @@ public class AsyncTask {
      * @param command Command to run
      */
     public void push(Command command) {
-        if (parentUI == null) return;
-        if (missedPolls == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL) {
+        if (parentUI == null) {
+            return;
+        }
+        if (missedPolls.get() == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL) {
             parentUI.accessSynchronously(() -> {
                 try {
                     command.execute();
@@ -115,6 +119,16 @@ public class AsyncTask {
         return parentUI;
     }
 
+    /**
+     * Wait for the task to finish.
+     *
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    public void await() throws ExecutionException, InterruptedException {
+        task.get();
+    }
+
     //--- Implementation
 
     /**
@@ -139,7 +153,7 @@ public class AsyncTask {
      */
     private void registerPush(Component component, AsyncAction action) {
         add();
-        missedPolls = PUSH_ACTIVE;
+        missedPolls.set(PUSH_ACTIVE);
 
         task = createFutureTask(action);
 
@@ -219,10 +233,18 @@ public class AsyncTask {
                 parentUI.accessSynchronously(() -> {
                     asyncManager.adjustPollingInterval(parentUI);
 
-                    if (componentDetachListenerRegistration != null) componentDetachListenerRegistration.remove();
-                    if (uiDetachListenerRegistration != null) uiDetachListenerRegistration.remove();
-                    if (pollingListenerRegistration != null) pollingListenerRegistration.remove();
-                    if (beforeLeaveListenerRegistration != null) beforeLeaveListenerRegistration.remove();
+                    if (componentDetachListenerRegistration != null) {
+                        componentDetachListenerRegistration.remove();
+                    }
+                    if (uiDetachListenerRegistration != null) {
+                        uiDetachListenerRegistration.remove();
+                    }
+                    if (pollingListenerRegistration != null) {
+                        pollingListenerRegistration.remove();
+                    }
+                    if (beforeLeaveListenerRegistration != null) {
+                        beforeLeaveListenerRegistration.remove();
+                    }
 
                     componentDetachListenerRegistration = null;
                     uiDetachListenerRegistration = null;
@@ -243,8 +265,10 @@ public class AsyncTask {
      * @return Polling interval in milliseconds
      */
     int getPollingInterval() {
-        int missed = missedPolls;
-        if (missed == PUSH_ACTIVE) return Integer.MAX_VALUE;
+        int missed = missedPolls.get();
+        if (missed == PUSH_ACTIVE) {
+            return Integer.MAX_VALUE;
+        }
         if (missed >= asyncManager.getPollingIntervals().length) {
             return asyncManager.getPollingIntervals()[asyncManager.getPollingIntervals().length - 1];
         }
@@ -279,8 +303,8 @@ public class AsyncTask {
      * @param ignore component event
      */
     private void onPollEvent(PollEvent ignore) {
-        if (missedPolls != PUSH_ACTIVE) {
-            missedPolls++;
+        if (missedPolls.get() != PUSH_ACTIVE) {
+            missedPolls.incrementAndGet();
             asyncManager.adjustPollingInterval(parentUI);
         }
     }
