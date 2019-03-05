@@ -59,6 +59,10 @@ public class AsyncTask {
      * push is used for current task
      */
     private AtomicInteger missedPolls = new AtomicInteger();
+    /**
+     * {@code true}, if thread may be interrupted if UI/Component detaches
+     */
+    private boolean mayInterrupt = true;
 
     /**
      * Create a new task
@@ -78,33 +82,31 @@ public class AsyncTask {
         if (parentUI == null) {
             return;
         }
-        if (missedPolls.get() == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL) {
-            parentUI.accessSynchronously(() -> {
-                try {
-                    command.execute();
+        boolean mustPush = missedPolls.get() == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL;
+        parentUI.accessSynchronously(() -> {
+            try {
+                command.execute();
+                if (mustPush) {
                     parentUI.push();
-                } catch (UIDetachedException ignore) {
-                    // Do not report
-                    // How could this even happen?
-                } catch (Exception e) {
-                    // Dump
-                    asyncManager.handleException(this, e);
                 }
-            });
-        } else {
-            // Automatic -- changes will be pushed automatically
-            // Disabled -- we're using polling and this is called
-            //             within UIDLRequestHandler
-            parentUI.accessSynchronously(command);
-        }
+            } catch (UIDetachedException ignore) {
+                // Do not report
+                // How could this even happen?
+            } catch (Exception e) {
+                // Dump
+                asyncManager.handleException(this, e);
+            }
+        });
     }
 
     /**
-     * Cancel and unregister the task
+     * Cancel and unregister the task. Thread interruption behaviour is controlled
+     * by {@link AsyncTask#allowThreadInterrupt()} and
+     * {@link AsyncTask#preventThreadInterrupt()} methods.
      */
     public void cancel() {
         if (!task.isCancelled() && !task.isDone()) {
-            task.cancel(true);
+            task.cancel(mayInterrupt);
         }
         remove();
     }
@@ -127,6 +129,20 @@ public class AsyncTask {
      */
     public void await() throws ExecutionException, InterruptedException {
         task.get();
+    }
+
+    /**
+     * Allow worker thread to be interrupted when UI or Component detaches. Default behaviour.
+     */
+    public void allowThreadInterrupt() {
+        this.mayInterrupt = true;
+    }
+
+    /**
+     * Prevent worker thread interruption when UI or Component detaches.
+     */
+    public void preventThreadInterrupt() {
+        this.mayInterrupt = false;
     }
 
     //--- Implementation
