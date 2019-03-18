@@ -55,7 +55,7 @@ public final class AsyncManager {
     /**
      * Instance of AsyncManager
      */
-    private static AsyncManager instance;
+    private static final AsyncManager instance = new AsyncManager();
 
     //-- Private fields
 
@@ -82,10 +82,7 @@ public final class AsyncManager {
      *
      * @return Instance of AsyncManager
      */
-    public static synchronized AsyncManager getInstance() {
-        if (instance == null) {
-            instance = new AsyncManager();
-        }
+    public static AsyncManager getInstance() {
         return instance;
     }
 
