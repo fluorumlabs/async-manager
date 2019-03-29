@@ -98,7 +98,7 @@ to pool size of 25 threads. You can change that with `AsyncManager.getInstance()
 <dependency>
    <groupId>org.vaadin.helper</groupId>
    <artifactId>async-manager</artifactId>
-   <version>1.0.0-rc1</version>
+   <version>1.0.0</version>
 </dependency>
 ```
 
