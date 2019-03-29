@@ -11,12 +11,12 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Asynchronous task created by {@link AsyncManager#register(Component, AsyncAction)}
+ * Asynchronous task created by {@link AsyncManager#register(Component, Action)}
  *
  * @author Artem Godin
  * @see AsyncManager
  */
-public class AsyncTask {
+public class AsyncTask extends Task {
     //--- Defaults
 
     /**
@@ -27,17 +27,9 @@ public class AsyncTask {
     //--- Fields
 
     /**
-     * Intance of AsyncManager handling this task
-     */
-    private final AsyncManager asyncManager;
-    /**
      * {@link FutureTask} representing action
      */
     private FutureTask<AsyncTask> task;
-    /**
-     * Owning UI for current task
-     */
-    private UI parentUI;
     /**
      * Registration for PollEvent listener
      */
@@ -68,7 +60,7 @@ public class AsyncTask {
      * Create a new task
      */
     AsyncTask(AsyncManager asyncManager) {
-        this.asyncManager = asyncManager;
+        super(asyncManager);
     }
 
     //--- Public methods
@@ -79,22 +71,22 @@ public class AsyncTask {
      * @param command Command to run
      */
     public void push(Command command) {
-        if (parentUI == null) {
+        if (getUI() == null) {
             return;
         }
-        boolean mustPush = missedPolls.get() == PUSH_ACTIVE && parentUI.getPushConfiguration().getPushMode() == PushMode.MANUAL;
-        parentUI.accessSynchronously(() -> {
+        boolean mustPush = missedPolls.get() == PUSH_ACTIVE && getUI().getPushConfiguration().getPushMode() == PushMode.MANUAL;
+        getUI().accessSynchronously(() -> {
             try {
                 command.execute();
                 if (mustPush) {
-                    parentUI.push();
+                    getUI().push();
                 }
             } catch (UIDetachedException ignore) {
                 // Do not report
                 // How could this even happen?
             } catch (Exception e) {
                 // Dump
-                asyncManager.handleException(this, e);
+                getAsyncManager().handleException(this, e);
             }
         });
     }
@@ -109,16 +101,6 @@ public class AsyncTask {
             task.cancel(mayInterrupt);
         }
         remove();
-    }
-
-    /**
-     * Get instance of UI with which this task is associated
-     *
-     * @return UI instance or {@code null} if task was cancelled or has finished
-     * the execution
-     */
-    public UI getUI() {
-        return parentUI;
     }
 
     /**
@@ -153,8 +135,8 @@ public class AsyncTask {
      * @param ui     UI owning current view
      * @param action Action
      */
-    void register(UI ui, Component component, AsyncAction action) {
-        this.parentUI = ui;
+    public void register(UI ui, Component component, Action action) {
+        setUI(ui);
         if (ui.getPushConfiguration().getPushMode().isEnabled()) {
             registerPush(component, action);
         } else {
@@ -167,15 +149,15 @@ public class AsyncTask {
      *
      * @param action Action
      */
-    private void registerPush(Component component, AsyncAction action) {
+    private void registerPush(Component component, Action action) {
         add();
         missedPolls.set(PUSH_ACTIVE);
 
         task = createFutureTask(action);
 
         componentDetachListenerRegistration = component.addDetachListener(this::onDetachEvent);
-        uiDetachListenerRegistration = parentUI.addDetachListener(this::onDetachEvent);
-        beforeLeaveListenerRegistration = parentUI.addBeforeLeaveListener(this::onBeforeLeaveEvent);
+        uiDetachListenerRegistration = getUI().addDetachListener(this::onDetachEvent);
+        beforeLeaveListenerRegistration = getUI().addBeforeLeaveListener(this::onBeforeLeaveEvent);
 
         execute();
     }
@@ -185,18 +167,18 @@ public class AsyncTask {
      *
      * @param action Action
      */
-    private void registerPoll(Component component, AsyncAction action) {
+    private void registerPoll(Component component, Action action) {
         add();
 
         task = createFutureTask(action);
 
-        pollingListenerRegistration = parentUI.addPollListener(this::onPollEvent);
+        pollingListenerRegistration = getUI().addPollListener(this::onPollEvent);
 
-        uiDetachListenerRegistration = parentUI.addDetachListener(this::onDetachEvent);
+        uiDetachListenerRegistration = getUI().addDetachListener(this::onDetachEvent);
         componentDetachListenerRegistration = component.addDetachListener(this::onDetachEvent);
-        beforeLeaveListenerRegistration = parentUI.addBeforeLeaveListener(this::onBeforeLeaveEvent);
+        beforeLeaveListenerRegistration = getUI().addBeforeLeaveListener(this::onBeforeLeaveEvent);
 
-        asyncManager.adjustPollingInterval(parentUI);
+        getAsyncManager().adjustPollingInterval(getUI());
         execute();
     }
 
@@ -206,7 +188,7 @@ public class AsyncTask {
      * @param action Action
      * @return Action wrapped with exception handling
      */
-    private FutureTask<AsyncTask> createFutureTask(AsyncAction action) {
+    private FutureTask<AsyncTask> createFutureTask(Action action) {
         return new FutureTask<>(() -> {
             try {
                 action.run(this);
@@ -217,7 +199,7 @@ public class AsyncTask {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
                 // Dump
-                asyncManager.handleException(this, e);
+                getAsyncManager().handleException(this, e);
             } finally {
                 remove();
             }
@@ -228,26 +210,26 @@ public class AsyncTask {
      * Execute task in {@link AsyncManager#getExecutorService()} executor
      */
     private void execute() {
-        asyncManager.getExecutorService().execute(task);
+        getAsyncManager().getExecutorService().execute(task);
     }
 
     /**
      * Add current task to {@link AsyncManager#asyncTasks}
      */
     private void add() {
-        asyncManager.addAsyncTask(parentUI, this);
+        getAsyncManager().addAsyncTask(getUI(), this);
     }
 
     /**
      * Remove current task from {@link AsyncManager#asyncTasks} and unregister all listeners
      */
     private void remove() {
-        if (parentUI != null) {
-            asyncManager.removeAsyncTask(parentUI, this);
+        if (getUI() != null) {
+            getAsyncManager().removeAsyncTask(getUI(), this);
             // Polling interval needs to be adjusted if task is finished
             try {
-                parentUI.accessSynchronously(() -> {
-                    asyncManager.adjustPollingInterval(parentUI);
+                getUI().accessSynchronously(() -> {
+                    getAsyncManager().adjustPollingInterval(getUI());
 
                     if (componentDetachListenerRegistration != null) {
                         componentDetachListenerRegistration.remove();
@@ -271,7 +253,7 @@ public class AsyncTask {
                 // ignore detached ui -- there will be no polling events for them anyway
             }
 
-            parentUI = null;
+            setUI(null);
         }
     }
 
@@ -285,10 +267,10 @@ public class AsyncTask {
         if (missed == PUSH_ACTIVE) {
             return Integer.MAX_VALUE;
         }
-        if (missed >= asyncManager.getPollingIntervals().length) {
-            return asyncManager.getPollingIntervals()[asyncManager.getPollingIntervals().length - 1];
+        if (missed >= getAsyncManager().getPollingIntervals().length) {
+            return getAsyncManager().getPollingIntervals()[getAsyncManager().getPollingIntervals().length - 1];
         }
-        return asyncManager.getPollingIntervals()[missed];
+        return getAsyncManager().getPollingIntervals()[missed];
     }
 
     //--- Event listeners
@@ -321,7 +303,7 @@ public class AsyncTask {
     private void onPollEvent(PollEvent ignore) {
         if (missedPolls.get() != PUSH_ACTIVE) {
             missedPolls.incrementAndGet();
-            asyncManager.adjustPollingInterval(parentUI);
+            getAsyncManager().adjustPollingInterval(getUI());
         }
     }
 }

@@ -8,7 +8,6 @@ import com.vaadin.flow.component.UI;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
 
 /**
  * Helper class for executing asynchronous tasks in your views using push or dynamic polling.
@@ -17,9 +16,9 @@ import java.util.function.Consumer;
  * do not require {@code UI} lock. This helper allows to simplify deferred task creation:
  * <p>
  * <pre><code>
- *     AsyncManager.register(this, asyncTask -> {
+ *     AsyncManager.register(this, task -> {
  *         doSomeHeavylifting();
- *         asyncTask.push({
+ *         task.push({
  *             updateView();
  *         });
  *     });
@@ -34,7 +33,7 @@ import java.util.function.Consumer;
  *
  * @author Artem Godin
  * @see AsyncTask
- * @see AsyncAction
+ * @see Action
  */
 public final class AsyncManager {
     //--- Defaults
@@ -47,8 +46,6 @@ public final class AsyncManager {
      * Default polling intervals (200 ms)
      */
     private static final int[] DEFAULT_POLLING_INTERVALS = {200};
-
-    private static final String ASYNC_TASKS_KEY = "org.vaadin.flow.helper.AsyncManager";
 
     //--- The one and only instance of AsyncManager
 
@@ -94,19 +91,32 @@ public final class AsyncManager {
      *
      * @param component Component, where the action needs to be performed, typically your view
      * @param action    Action
-     * @return {@link AsyncTask}, associated with this action
+     * @return {@link Task}, associated with this action
      */
-    public static AsyncTask register(Component component, AsyncAction action) {
+    public static Task register(Component component, Action action) {
         return getInstance().registerAsync(component, action);
+    }
+
+    /**
+     * Register and runs eager action. Action are started immediately in the same thread.
+     * <p>
+     * Shorthand for {@code AsyncManager.getInstance().registerSync(component, action)}
+     *
+     * @param component Component, where the action needs to be performed, typically your view
+     * @param action    Action
+     * @return {@link Task}, associated with this action
+     */
+    public static Task run(Component component, Action action) {
+        return getInstance().registerSync(component, action);
     }
 
     /**
      * Default exception handler that simply logs the exception
      *
-     * @param task AsyncTask where exception happened
+     * @param task Task where exception happened
      * @param e    Exception to handle
      */
-    private static void logException(AsyncTask task, Throwable e) {
+    private static void logException(Task task, Throwable e) {
         LoggerFactory.getLogger(AsyncManager.class.getName()).warn(e.getMessage(), e);
     }
 
@@ -171,25 +181,45 @@ public final class AsyncManager {
      *
      * @param component Component, where the action needs to be performed, typically your view
      * @param action    Action
-     * @return {@link AsyncTask}, associated with this action
+     * @return {@link Task}, associated with this action
      */
-    public AsyncTask registerAsync(Component component, AsyncAction action) {
+    public Task registerSync(Component component, Action action) {
         Objects.requireNonNull(component);
 
-        AsyncTask asyncTask = new AsyncTask(this);
-        UI ui = component.getUI().orElse(null);
-        if (ui != null) {
-            asyncTask.register(ui, component, action);
-        } else {
-            component.addAttachListener(attachEvent -> {
-                attachEvent.unregisterListener();
-                asyncTask.register(attachEvent.getUI(), component, action);
-            });
-        }
-        return asyncTask;
+        Task task = new SyncTask(this);
+        registerTask(component, task, action);
+        return task;
+    }
+
+    /**
+     * Register and start a new deferred action. Action are started immediately in a separate thread and do not hold
+     * {@code UI} or {@code VaadinSession} locks.
+     *
+     * @param component Component, where the action needs to be performed, typically your view
+     * @param action    Action
+     * @return {@link Task}, associated with this action
+     */
+    public Task registerAsync(Component component, Action action) {
+        Objects.requireNonNull(component);
+
+        Task task = new AsyncTask(this);
+        registerTask(component, task, action);
+        return task;
     }
 
     //--- Implementation
+
+    void registerTask(Component component, Task task, Action action) {
+        UI ui = component.getUI().orElse(null);
+        if (ui != null) {
+            task.register(ui, component, action);
+        } else {
+            component.addAttachListener(attachEvent -> {
+                attachEvent.unregisterListener();
+                task.register(attachEvent.getUI(), component, action);
+            });
+        }
+    }
 
     /**
      * Get list of active asynchronous tasks for specified component
@@ -199,10 +229,10 @@ public final class AsyncManager {
      */
     @SuppressWarnings("unchecked")
     private Set<AsyncTask> getAsyncTasks(UI ui) {
-        Set<AsyncTask> asyncTasks = (Set<AsyncTask>) ComponentUtil.getData(ui, ASYNC_TASKS_KEY);
+        Set<AsyncTask> asyncTasks = (Set<AsyncTask>) ComponentUtil.getData(ui, getClass().getName());
         if ( asyncTasks == null ) {
             asyncTasks = Collections.synchronizedSet(new HashSet<>());
-            ComponentUtil.setData(ui, ASYNC_TASKS_KEY, asyncTasks);
+            ComponentUtil.setData(ui, getClass().getName(), asyncTasks);
         }
         return asyncTasks;
     }
@@ -253,7 +283,7 @@ public final class AsyncManager {
      *
      * @param e Exception to handle
      */
-    void handleException(AsyncTask task, Exception e) {
+    void handleException(Task task, Exception e) {
         exceptionHandler.handle(task, e);
     }
 
@@ -268,6 +298,6 @@ public final class AsyncManager {
          * @param task AsyncTask where exception happened
          * @param e    Exception
          */
-        void handle(AsyncTask task, Exception e);
+        void handle(Task task, Exception e);
     }
 }

@@ -63,9 +63,9 @@ should terminate threads when their results are not needed anymore (i.e. user ha
 
 But wander no more, there is an easy solution: **Async Manager**. It is really easy to use:
 ```java
-AsyncManager.register(this, asyncTask -> {
+AsyncManager.register(this, task -> {
     SomeData result = doHeavyLifting();
-    asyncTask.push(() -> showData(result));
+    task.push(() -> showData(result));
 })
 ```
 AsyncManager supports both push and polling, and takes care of cleanup and thread 
@@ -98,7 +98,7 @@ to pool size of 25 threads. You can change that with `AsyncManager.getInstance()
 <dependency>
    <groupId>org.vaadin.helper</groupId>
    <artifactId>async-manager</artifactId>
-   <version>1.0.0</version>
+   <version>1.1.0-alpha1</version>
 </dependency>
 ```
 
