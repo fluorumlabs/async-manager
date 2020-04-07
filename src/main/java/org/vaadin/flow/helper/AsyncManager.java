@@ -232,7 +232,7 @@ public final class AsyncManager {
      *
      * @param ui UI, associated with current task
      */
-    void adjustPollingInterval(UI ui) {
+    synchronized void adjustPollingInterval(UI ui) {
         int newInterval = getAsyncTasks(ui).stream()
                 .map(AsyncTask::getPollingInterval)
                 .sorted()
