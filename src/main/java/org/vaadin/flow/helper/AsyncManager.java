@@ -232,18 +232,22 @@ public final class AsyncManager {
      *
      * @param ui UI, associated with current task
      */
-    synchronized void adjustPollingInterval(UI ui) {
-        int newInterval = getAsyncTasks(ui).stream()
-                .map(AsyncTask::getPollingInterval)
-                .sorted()
-                .findFirst().orElse(Integer.MAX_VALUE);
-        if (newInterval < Integer.MAX_VALUE) {
-            if (newInterval != ui.getPollInterval()) {
-                ui.setPollInterval(newInterval);
-            }
-        } else {
-            if (-1 != ui.getPollInterval()) {
-                ui.setPollInterval(-1);
+    void adjustPollingInterval(UI ui) {
+        Set<AsyncTask> tasks = getAsyncTasks(ui);
+
+        synchronized (tasks) {
+            int newInterval = tasks.stream()
+                    .map(AsyncTask::getPollingInterval)
+                    .sorted()
+                    .findFirst().orElse(Integer.MAX_VALUE);
+            if (newInterval < Integer.MAX_VALUE) {
+                if (newInterval != ui.getPollInterval()) {
+                    ui.setPollInterval(newInterval);
+                }
+            } else {
+                if (-1 != ui.getPollInterval()) {
+                    ui.setPollInterval(-1);
+                }
             }
         }
     }
