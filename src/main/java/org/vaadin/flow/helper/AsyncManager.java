@@ -230,10 +230,10 @@ public final class AsyncManager {
     @SuppressWarnings("unchecked")
     private Set<AsyncTask> getAsyncTasks(UI ui) {
         synchronized (ui) {
-            Set<AsyncTask> asyncTasks = (Set<AsyncTask>) ComponentUtil.getData(ui, ASYNC_TASKS_KEY);
+            Set<AsyncTask> asyncTasks = (Set<AsyncTask>) ComponentUtil.getData(ui, getClass().getName());
             if (asyncTasks == null) {
                 asyncTasks = Collections.synchronizedSet(new HashSet<>());
-                ComponentUtil.setData(ui, ASYNC_TASKS_KEY, asyncTasks);
+                ComponentUtil.setData(ui, getClass().getName(), asyncTasks);
             }
 
             return asyncTasks;

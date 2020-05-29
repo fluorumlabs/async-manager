@@ -5,7 +5,7 @@
 
     <groupId>org.vaadin.helper</groupId>
     <artifactId>async-manager</artifactId>
-    <version>1.1.0-alpha1</version>
+    <version>1.1.0</version>
     <name>Async Manager</name>
     <description>Async Manager for Vaadin Flow</description>
 
@@ -110,7 +110,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>
-                        <version>2.6</version>
+                        <version>3.3.0</version>
                         <configuration>
                             <appendAssemblyId>false</appendAssemblyId>
                             <descriptors>
