@@ -229,12 +229,15 @@ public final class AsyncManager {
      */
     @SuppressWarnings("unchecked")
     private Set<AsyncTask> getAsyncTasks(UI ui) {
-        Set<AsyncTask> asyncTasks = (Set<AsyncTask>) ComponentUtil.getData(ui, getClass().getName());
-        if ( asyncTasks == null ) {
-            asyncTasks = Collections.synchronizedSet(new HashSet<>());
-            ComponentUtil.setData(ui, getClass().getName(), asyncTasks);
+        synchronized (ui) {
+            Set<AsyncTask> asyncTasks = (Set<AsyncTask>) ComponentUtil.getData(ui, ASYNC_TASKS_KEY);
+            if (asyncTasks == null) {
+                asyncTasks = Collections.synchronizedSet(new HashSet<>());
+                ComponentUtil.setData(ui, ASYNC_TASKS_KEY, asyncTasks);
+            }
+
+            return asyncTasks;
         }
-        return asyncTasks;
     }
 
     /**
@@ -263,17 +266,21 @@ public final class AsyncManager {
      * @param ui UI, associated with current task
      */
     void adjustPollingInterval(UI ui) {
-        int newInterval = getAsyncTasks(ui).stream()
-                .map(AsyncTask::getPollingInterval)
-                .sorted()
-                .findFirst().orElse(Integer.MAX_VALUE);
-        if (newInterval < Integer.MAX_VALUE) {
-            if (newInterval != ui.getPollInterval()) {
-                ui.setPollInterval(newInterval);
-            }
-        } else {
-            if (-1 != ui.getPollInterval()) {
-                ui.setPollInterval(-1);
+        Set<AsyncTask> tasks = getAsyncTasks(ui);
+
+        synchronized (tasks) {
+            int newInterval = tasks.stream()
+                    .map(AsyncTask::getPollingInterval)
+                    .sorted()
+                    .findFirst().orElse(Integer.MAX_VALUE);
+            if (newInterval < Integer.MAX_VALUE) {
+                if (newInterval != ui.getPollInterval()) {
+                    ui.setPollInterval(newInterval);
+                }
+            } else {
+                if (-1 != ui.getPollInterval()) {
+                    ui.setPollInterval(-1);
+                }
             }
         }
     }
