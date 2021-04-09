@@ -2,6 +2,7 @@
 [![Latest published version](https://img.shields.io/vaadin-directory/v/async-manager.svg)](https://vaadin.com/directory/component/async-manager)
 [![Stars on vaadin.com/directory](https://img.shields.io/vaadin-directory/star/async-manager.svg)](https://vaadin.com/directory/component/async-manager)
 ![Build status](https://travis-ci.com/fluorumlabs/async-manager.svg?branch=master)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ffluorumlabs%2Fasync-manager.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ffluorumlabs%2Fasync-manager?ref=badge_shield)
 
 # Async Manager for Vaadin Flow
 
@@ -110,3 +111,7 @@ mvn jetty:run
 ```
 
 This deploys demo at http://localhost:8080
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ffluorumlabs%2Fasync-manager.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ffluorumlabs%2Fasync-manager?ref=badge_large)
