@@ -67,7 +67,7 @@
         <dependency>
             <groupId>com.github.fluorumlabs</groupId>
             <artifactId>jext-apt</artifactId>
-            <version>1.0.0-2104274</version>
+            <version>1.0.0-2104276</version>
         </dependency>
     </dependencies>
 
