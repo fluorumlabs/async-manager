@@ -10,7 +10,7 @@
     <description>Async Manager for Vaadin Flow</description>
 
     <properties>
-        <vaadin.version>10.0.5</vaadin.version>
+        <vaadin.version>10.0.18</vaadin.version>
 
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
