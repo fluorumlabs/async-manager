@@ -60,7 +60,11 @@
             <artifactId>slf4j-simple</artifactId>
             <scope>test</scope>
         </dependency>
-    </dependencies>
+        <dependency>
+      <groupId>com.github.fluorumlabs</groupId>
+      <artifactId>jext-apt</artifactId>
+      <version>1.0.0-2105261</version>
+    </dependency></dependencies>
 
     <build>
         <plugins>
