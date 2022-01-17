@@ -5,7 +5,7 @@
 
     <groupId>org.vaadin.helper</groupId>
     <artifactId>async-manager</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <name>Async Manager</name>
     <description>Async Manager for Vaadin Flow</description>
 

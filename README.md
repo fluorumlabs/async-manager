@@ -85,6 +85,11 @@ AsyncManager.getInstance().setExceptionHandler((task, exception) -> ...);
 Note: By default all worker threads are started by `ThreadPoolExecutor` which defaults
 to pool size of 25 threads. You can change that with `AsyncManager.getInstance().setExecutorService()`.
 
+As of version 1.2 it is possible to set a task state handler if you need more information about each task, e.g. for ui loading indicator handling.
+```java
+AsyncManager.getInstance().setTaskStateHandler((task, state) -> ...);
+```
+
 ## Installing with Maven
 
 ```xml

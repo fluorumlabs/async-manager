@@ -69,10 +69,13 @@ public class SyncTask extends Task {
     void register(UI ui, Component component, Action action) {
         setUI(ui);
         try {
+            getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.RUNNING);
             action.run(this);
+            getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.DONE);
         } catch (Exception e) {
             // Dump
             getAsyncManager().handleException(this, e);
+            getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.DONE);
         }
     }
 }

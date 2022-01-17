@@ -50,7 +50,7 @@ public class AsyncTask extends Task {
      * Number of poll events happened while action is executing, or {@link #PUSH_ACTIVE} if
      * push is used for current task
      */
-    private AtomicInteger missedPolls = new AtomicInteger();
+    private final AtomicInteger missedPolls = new AtomicInteger();
     /**
      * {@code true}, if thread may be interrupted if UI/Component detaches
      */
@@ -100,6 +100,7 @@ public class AsyncTask extends Task {
         if (!task.isCancelled() && !task.isDone()) {
             task.cancel(mayInterrupt);
         }
+        getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.CANCELED);
         remove();
     }
 
@@ -191,6 +192,7 @@ public class AsyncTask extends Task {
     private FutureTask<AsyncTask> createFutureTask(Action action) {
         return new FutureTask<>(() -> {
             try {
+                getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.RUNNING);
                 action.run(this);
             } catch (UIDetachedException ignore) {
                 // Do not report
@@ -201,6 +203,7 @@ public class AsyncTask extends Task {
                 // Dump
                 getAsyncManager().handleException(this, e);
             } finally {
+                getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.DONE);
                 remove();
             }
         }, this);
