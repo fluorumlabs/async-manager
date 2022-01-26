@@ -3,11 +3,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.vaadin.helper</groupId>
+    <groupId>de.csi.vaadin.helper</groupId>
     <artifactId>async-manager</artifactId>
     <version>1.2.0</version>
     <name>Async Manager</name>
-    <description>Async Manager for Vaadin Flow</description>
+    <description>Async Manager for Vaadin Flow (CSI fork)</description>
 
     <properties>
         <vaadin.version>10.0.5</vaadin.version>
