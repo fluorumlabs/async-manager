@@ -3,8 +3,12 @@ package org.vaadin.flow.helper;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.router.BeforeLeaveEvent;
 import com.vaadin.flow.server.Command;
+import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.shared.communication.PushMode;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -50,7 +54,7 @@ public class AsyncTask extends Task {
      * Number of poll events happened while action is executing, or {@link #PUSH_ACTIVE} if
      * push is used for current task
      */
-    private AtomicInteger missedPolls = new AtomicInteger();
+    private final AtomicInteger missedPolls = new AtomicInteger();
     /**
      * {@code true}, if thread may be interrupted if UI/Component detaches
      */
@@ -100,6 +104,7 @@ public class AsyncTask extends Task {
         if (!task.isCancelled() && !task.isDone()) {
             task.cancel(mayInterrupt);
         }
+        getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.CANCELED);
         remove();
     }
 
@@ -191,6 +196,12 @@ public class AsyncTask extends Task {
     private FutureTask<AsyncTask> createFutureTask(Action action) {
         return new FutureTask<>(() -> {
             try {
+                getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.RUNNING);
+
+                // Session + Security für den Async-Task setzen
+                VaadinSession.setCurrent(getUI().getSession());
+                SecurityContextHolder.setContext((SecurityContext) VaadinSession.getCurrent().getSession().getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY));
+
                 action.run(this);
             } catch (UIDetachedException ignore) {
                 // Do not report
@@ -201,6 +212,7 @@ public class AsyncTask extends Task {
                 // Dump
                 getAsyncManager().handleException(this, e);
             } finally {
+                getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.DONE);
                 remove();
             }
         }, this);

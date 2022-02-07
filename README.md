@@ -5,6 +5,11 @@
 
 # Async Manager for Vaadin Flow
 
+# Hinweis "c-si" Version
+Bei der Ausführung der Async-Tasks werden die Session und der SecurityContext der jeweiligen UI an den "Background-Thread" gesetzt.
+
+# About
+
 In complex application quite often you end up having a view that takes ages to load
 because some parts of view require heavy computation. If you are pursuing the goal 
 of making your application responsive, you would probably want to defer updates for
@@ -84,6 +89,11 @@ AsyncManager.getInstance().setExceptionHandler((task, exception) -> ...);
 
 Note: By default all worker threads are started by `ThreadPoolExecutor` which defaults
 to pool size of 25 threads. You can change that with `AsyncManager.getInstance().setExecutorService()`.
+
+As of version 1.2 it is possible to set a task state handler if you need more information about each task, e.g. for ui loading indicator handling.
+```java
+AsyncManager.getInstance().setTaskStateHandler((task, state) -> ...);
+```
 
 ## Installing with Maven
 

@@ -5,7 +5,10 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.UI;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -60,6 +63,11 @@ public final class AsyncManager {
      * Exception handler
      */
     private ExceptionHandler exceptionHandler = AsyncManager::logException;
+    /**
+     * Task state handler
+     */
+    private TaskStateHandler taskStateHandler;
+
     /**
      * Instance of {@link ExecutorService} used for asynchronous tasks
      */
@@ -131,6 +139,15 @@ public final class AsyncManager {
     public void setExceptionHandler(ExceptionHandler handler) {
         exceptionHandler = handler;
     }
+
+    /**
+     * Set custom task state handler to monitor
+     * @param handler State handler to set
+     */
+    public void setTaskStateHandler(TaskStateHandler handler) {
+        taskStateHandler = handler;
+    }
+
 
     /**
      * Get a {@link ExecutorService} used for asynchronous task execution.
@@ -294,6 +311,12 @@ public final class AsyncManager {
         exceptionHandler.handle(task, e);
     }
 
+    void handleTaskStateChanged(Task task, TaskStateHandler.State state) {
+        if (taskStateHandler != null) {
+            taskStateHandler.taskChanged(task, state);
+        }
+    }
+
     /**
      * Functional interface for exception handling
      */
@@ -306,5 +329,33 @@ public final class AsyncManager {
          * @param e    Exception
          */
         void handle(Task task, Exception e);
+    }
+
+    /**
+     * Functional interface for task state handling
+     */
+    @FunctionalInterface
+    public interface TaskStateHandler {
+        enum State {
+            /**
+             * Task started
+             */
+            RUNNING,
+            /**
+             * Task done
+             */
+            DONE,
+            /**
+             * Task was canceled
+             */
+            CANCELED
+        }
+
+        /**
+         * Handle state change during task execution.
+         * @param task Task where state change happened
+         * @param state State of the given task
+         */
+        void taskChanged(Task task, State state);
     }
 }
