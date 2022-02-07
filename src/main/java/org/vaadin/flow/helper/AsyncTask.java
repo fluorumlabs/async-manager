@@ -3,8 +3,12 @@ package org.vaadin.flow.helper;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.router.BeforeLeaveEvent;
 import com.vaadin.flow.server.Command;
+import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.shared.communication.PushMode;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -193,6 +197,11 @@ public class AsyncTask extends Task {
         return new FutureTask<>(() -> {
             try {
                 getAsyncManager().handleTaskStateChanged(this, AsyncManager.TaskStateHandler.State.RUNNING);
+
+                // Session + Security für den Async-Task setzen
+                VaadinSession.setCurrent(getUI().getSession());
+                SecurityContextHolder.setContext((SecurityContext) VaadinSession.getCurrent().getSession().getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY));
+
                 action.run(this);
             } catch (UIDetachedException ignore) {
                 // Do not report

@@ -5,6 +5,11 @@
 
 # Async Manager for Vaadin Flow
 
+# Hinweis "c-si" Version
+Bei der Ausführung der Async-Tasks werden die Session und der SecurityContext der jeweiligen UI an den "Background-Thread" gesetzt.
+
+# About
+
 In complex application quite often you end up having a view that takes ages to load
 because some parts of view require heavy computation. If you are pursuing the goal 
 of making your application responsive, you would probably want to defer updates for
